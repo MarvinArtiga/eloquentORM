@@ -1,53 +1,149 @@
+
 # La Buena Mesa — Menu Items API
 
-RESTful API to manage restaurant menu items for the "La Buena Mesa" project.
+API RESTful para gestionar los elementos del menú del restaurante "La Buena Mesa".
 
-Requirements
-- PHP 8.3+
+## Requisitos
+
+- PHP 8.3 o superior
 - Composer
-- PostgreSQL (running in Docker as provided by the project setup)
+- PostgreSQL (el proyecto asume que PostgreSQL corre en Docker; Laravel correrá localmente)
 
-Installation
-1. Copy environment file: `cp .env.example .env` and fill your PostgreSQL credentials.
-2. Install PHP dependencies: `composer install`.
-3. Generate app key: `php artisan key:generate`.
+## Instalación
 
-Database
-- Ensure PostgreSQL is running and reachable from your host.
-- Configure `.env` with: `DB_CONNECTION=pgsql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
-- Run migrations: `php artisan migrate`.
-- Run seeders: `php artisan db:seed`.
+1. Copia el archivo de ejemplo y edítalo con tus credenciales de PostgreSQL:
 
-Running
-- Start the app (local PHP server): `php artisan serve` (or use your preferred PHP-FPM + webserver).
+```bash
+cp .env.example .env
+# editar .env y completar DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+```
 
-API Endpoints
-- GET `/api/menu-items` — List all menu items.
-- GET `/api/menu-items/{id}` — Get a specific menu item.
-- POST `/api/menu-items` — Create a menu item. (201 on success)
-- PUT `/api/menu-items/{id}` — Replace an existing menu item. (200 on success)
-- PATCH `/api/menu-items/{id}` — Partially update an item. (200 on success)
-- DELETE `/api/menu-items/{id}` — Delete an item. (204 on success)
-- GET `/api/menu-items/category/{category}` — Filter by category.
+2. Instala dependencias PHP:
 
-Request examples
+```bash
+composer install
+php artisan key:generate
+```
 
-Create (POST /api/menu-items)
+3. Ejecuta migraciones y seeders:
+
+```bash
+php artisan migrate
+php artisan db:seed
+```
+
+4. Arranca el servidor de desarrollo:
+
+```bash
+php artisan serve
+# por defecto: http://127.0.0.1:8000
+```
+
+## Endpoints (API)
+
+Todas las rutas devuelven JSON y están prefijadas con `/api` (archivo: [routes/api.php](routes/api.php)).
+
+- GET `/api/menu-items` — Lista todos los elementos.
+- GET `/api/menu-items/{id}` — Obtiene un elemento por `id`.
+- POST `/api/menu-items` — Crea un elemento. Respuesta: `201 Created`.
+- PUT `/api/menu-items/{id}` — Reemplaza un elemento existente. Respuesta: `200 OK`.
+- PATCH `/api/menu-items/{id}` — Actualiza parcialmente un elemento. Respuesta: `200 OK`.
+- DELETE `/api/menu-items/{id}` — Elimina un elemento. Respuesta: `204 No Content`.
+- GET `/api/menu-items/category/{category}` — Filtra por categoría.
+
+### Validaciones (Form Requests)
+
+- `name`: required|string|max:255
+- `description`: nullable|string
+- `price`: required|numeric|min:0
+- `category`: required|string|max:255
+- `available`: boolean
+
+### Ejemplos de uso (curl)
+
+Listar todos:
+
+```bash
+curl -sS http://127.0.0.1:8000/api/menu-items
+```
+
+Obtener uno (id=1):
+
+```bash
+curl -sS http://127.0.0.1:8000/api/menu-items/1
+```
+
+Crear un elemento:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/api/menu-items \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ensalada","price":8.5,"category":"Entradas","description":"Fresca"}'
+```
+
+Actualizar (PUT):
+
+```bash
+curl -sS -X PUT http://127.0.0.1:8000/api/menu-items/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ensalada Updated","price":9.0,"category":"Entradas"}'
+```
+
+Eliminar:
+
+```bash
+curl -sS -X DELETE http://127.0.0.1:8000/api/menu-items/1
+```
+
+Filtrar por categoría:
+
+```bash
+curl -sS http://127.0.0.1:8000/api/menu-items/category/Entradas
+```
+
+### Ejemplo de respuesta (GET /api/menu-items)
+
+```json
 {
-  "name": "Spaghetti Bolognese",
-  "description": "Classic beef ragu",
-  "price": 14.00,
-  "category": "Pastas",
-  "available": true
+  "data": [
+    {
+      "id": 1,
+      "name": "Bruschetta",
+      "description": "Grilled bread with tomatoes and basil",
+      "price": 7.5,
+      "category": "Entradas",
+      "available": true,
+      "created_at": "2026-08-14 12:00:00",
+      "updated_at": "2026-08-14 12:00:00"
+    }
+  ]
 }
+```
 
-Responses
-- 200: OK (GET/PUT/PATCH)
-- 201: Created (POST)
-- 204: No Content (DELETE)
-- 404: Not Found
-- 422: Unprocessable Entity (validation errors)
+## Estructura principal del proyecto
 
-Notes
-- The project already contains Vue; this API implementation ignores the frontend.
-- Tests: run `php artisan test` (Pest is configured).
+- `app/Models/MenuItem.php` — Eloquent model.
+- `app/Http/Controllers/MenuItemController.php` — Controlador REST.
+- `app/Http/Requests/StoreMenuItemRequest.php` — Validación al crear.
+- `app/Http/Requests/UpdateMenuItemRequest.php` — Validación al actualizar.
+- `app/Http/Resources/MenuItemResource.php` — Transformador de respuestas JSON.
+- `database/migrations/*_create_menu_items_table.php` — Migration para la tabla `menu_items`.
+- `database/seeders/MenuItemSeeder.php` — Seeder inicial con categorías reales.
+- `routes/api.php` — Rutas de la API.
+- `tests/Feature/MenuItemTest.php` — Tests funcionales/Pest para los endpoints.
+
+## Ejecutar tests
+
+La suite de tests usa Pest (ya configurado). Ejecuta:
+
+```bash
+php artisan test --filter=MenuItemTest -v
+```
+
+Si las pruebas dan problemas por driver, verifica que el driver PDO correspondiente esté instalado (p.ej. `pdo_pgsql`) y que la base de datos definida en `.env` sea accesible.
+
+## Notas
+
+- No incluyas credenciales reales en `.env.example`. Ese archivo contiene valores de ejemplo; copia a `.env` y adapta.
+- Las rutas de la API están registradas en el bootstrap del proyecto; usa `php artisan route:list --path=menu-items` para verificarlas.
+
